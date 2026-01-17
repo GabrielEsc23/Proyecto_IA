@@ -1,0 +1,64 @@
+
+#Se crea un servidor WEB CON FASTAPI(API)
+from fastapi import FastAPI,UploadFile,File
+import pdfplumber
+import pandas as pd
+from docx import Document
+from io import BytesIO
+
+app=FastAPI()
+@app.get("/")
+def root(): 
+    return {"status":"ok"}
+
+
+# Aqui se hace que la API pueda recibir archivos
+#UploadFile representa el archivo que sube el usuario
+#File(...) le dice a FastAPI que esto viene en un formulario
+@app.post("/upload")
+async def upload_file(file:UploadFile=File(...)):
+    file_bytes=await file.read()
+    filename=file.filename.lower()
+    if filename.endswith(".txt"):
+        text=read_txt(file_bytes)
+    elif filename.endswith(".pdf"):
+        text=read_pdf(file_bytes)
+    elif filename.endswith(".docx"):
+        text=read_docx(file_bytes)
+    elif filename.endswith("xlsx"):
+        text=read_excel(file_bytes)
+    else:
+        return {"error":"Formato no soportado"}
+    
+    preview=text[:300]
+    
+    return{
+        "chars":len(text),
+        "preview":preview
+    }
+    
+#Se van a leer los archivos que se reciben desde el cliente
+def read_txt(file_bytes:bytes)-> str:
+    return file_bytes.decode("utf-8",errors="ignore")
+
+def read_pdf(file_bytes:bytes)-> str:
+    text=""
+    with pdfplumber.open(BytesIO(file_bytes)) as pdf:
+        for page in pdf.pages:
+            page_text=page.extract_text()
+            if page_text:
+                text +page_text + "\n"
+    return text
+
+def read_docx(file_bytes)-> str:
+    doc=Document(BytesIO(file_bytes))
+    return "\n".join(p.text for p in doc.paragraphs)
+
+def read_excel(file_bytes:bytes)-> str: 
+    df=pd.read_excel(BytesIO(file_bytes))
+    #Covertir todo el contenido a texto 
+    return "\n".join(
+        
+        " ".join(str(cell) for cell in row)
+        for row in df.values
+    )

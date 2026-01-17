@@ -5,6 +5,15 @@ import pdfplumber
 import pandas as pd
 from docx import Document
 from io import BytesIO
+from transformers import pipeline
+from collections import Counter
+
+#Esto carga un modelo que reconoce emociones en español.
+emotion_analyzer=pipeline(
+    "text-classification",
+    model="finiteautomata/beto-emotion-analysis",
+    
+)
 
 app=FastAPI()
 @app.get("/")
@@ -26,16 +35,31 @@ async def upload_file(file:UploadFile=File(...)):
         text=read_pdf(file_bytes)
     elif filename.endswith(".docx"):
         text=read_docx(file_bytes)
-    elif filename.endswith("xlsx"):
+    elif filename.endswith(".xlsx"):
         text=read_excel(file_bytes)
     else:
         return {"error":"Formato no soportado"}
     
     blocks= split_text(text)
+    results= []
+    for block in blocks:
+        analysis=analyze_block(block)
+        results.append(analysis)
+    emotions=[r["emotion"] for r in results]
+    count=Counter(emotions)
+    total=len(emotions)
     
+    porcentages={
+        emotion:round((qty/total)*100,2)
+        for emotion,qty in count.items()
+    }
+    dominant=count.most_common(1)[0][0]
     return{
         "chars":len(text),
         "blocks":len(blocks),
+        "dominant_emotion":dominant,
+        "percentages":porcentages,
+        "timeline":results,
         "preview":text[:300]
     }
     
@@ -49,7 +73,7 @@ def read_pdf(file_bytes:bytes)-> str:
         for page in pdf.pages:
             page_text=page.extract_text()
             if page_text:
-                text +page_text + "\n"
+                text +=page_text + "\n"
     return text
 
 def read_docx(file_bytes)-> str:
@@ -83,3 +107,12 @@ def split_text(text:str,max_words: int =200):
     if current:
         blocks.append(" ".join(current))
     return blocks
+
+
+def analyze_block(text:str):
+    snippet=text[:512]
+    result=emotion_analyzer(snippet)[0]
+    return{
+        "emotion":result["label"],
+        "score":float(result["score"])
+    }

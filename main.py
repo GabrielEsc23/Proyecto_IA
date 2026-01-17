@@ -19,6 +19,7 @@ def root():
 async def upload_file(file:UploadFile=File(...)):
     file_bytes=await file.read()
     filename=file.filename.lower()
+    
     if filename.endswith(".txt"):
         text=read_txt(file_bytes)
     elif filename.endswith(".pdf"):
@@ -30,11 +31,12 @@ async def upload_file(file:UploadFile=File(...)):
     else:
         return {"error":"Formato no soportado"}
     
-    preview=text[:300]
+    blocks= split_text(text)
     
     return{
         "chars":len(text),
-        "preview":preview
+        "blocks":len(blocks),
+        "preview":text[:300]
     }
     
 #Se van a leer los archivos que se reciben desde el cliente
@@ -62,3 +64,22 @@ def read_excel(file_bytes:bytes)-> str:
         " ".join(str(cell) for cell in row)
         for row in df.values
     )
+    
+#Esta función:
+#Toma todo el texto
+#Lo separa en bloques de ~200 palabras
+#Devuelve una lista de strings """
+
+def split_text(text:str,max_words: int =200):
+    words=text.split()
+    blocks=[]
+    current=[]
+    
+    for word in words:
+        current.append(word)
+        if len(current)>=max_words:
+            blocks.append(" ".join(current))
+            current=[]
+    if current:
+        blocks.append(" ".join(current))
+    return blocks

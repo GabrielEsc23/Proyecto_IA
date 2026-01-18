@@ -36,7 +36,7 @@ async def analyze_text(data:dict):
     text=data.get("text","")
     if not text.strip():
         return {"error":"Texto vacío"}
-    blocks=split_text(text)
+    blocks=smart_split(text)
     results=[]
     for block in blocks:
         analysis=analyze_block(block)
@@ -80,7 +80,7 @@ async def upload_file(file:UploadFile=File(...)):
     else:
         return {"error":"Formato no soportado"}
     
-    blocks= split_text(text)
+    blocks= smart_split(text)
     results= []
     for block in blocks:
         analysis=analyze_block(block)
@@ -135,18 +135,28 @@ def read_excel(file_bytes:bytes)-> str:
 #Lo separa en bloques de ~200 palabras
 #Devuelve una lista de strings """
 
-def split_text(text:str,max_words: int =200):
-    words=text.split()
-    blocks=[]
-    current=[]
-    
+def smart_split(text: str, max_words: int = 200):
+    # Primero intentamos dividir por líneas
+    lines = [line.strip() for line in text.split("\n") if line.strip()]
+
+    # Si hay varias líneas reales, usamos esas
+    if len(lines) > 1:
+        return lines
+
+    # Si no, caemos al método por palabras (párrafo largo)
+    words = text.split()
+    blocks = []
+    current = []
+
     for word in words:
         current.append(word)
-        if len(current)>=max_words:
+        if len(current) >= max_words:
             blocks.append(" ".join(current))
-            current=[]
+            current = []
+
     if current:
         blocks.append(" ".join(current))
+
     return blocks
 
 

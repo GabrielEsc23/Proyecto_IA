@@ -8,6 +8,17 @@ from io import BytesIO
 from transformers import pipeline
 from collections import Counter
 
+EMOTION_MAP = {
+    "joy": "Alegría",
+    "sadness": "Tristeza",
+    "fear": "Miedo",
+    "anger": "Enojo",
+    "surprise": "Sorpresa",
+    "love": "Afecto",
+    "others": "Neutral"
+}
+
+
 #Esto carga un modelo que reconoce emociones en español.
 emotion_analyzer=pipeline(
     "text-classification",
@@ -20,7 +31,36 @@ app=FastAPI()
 def root(): 
     return {"status":"ok"}
 
-
+@app.post("/analyze-text")
+async def analyze_text(data:dict):
+    text=data.get("text","")
+    if not text.strip():
+        return {"error":"Texto vacío"}
+    blocks=split_text(text)
+    results=[]
+    for block in blocks:
+        analysis=analyze_block(block)
+        results.append(analysis)
+        
+    emotions=[r["emotion"] for r in results]
+    count=Counter(emotions)
+    total=len(emotions)
+    
+    percentages = {
+        emotion: round((qty / total) * 100, 2)
+        for emotion, qty in count.items()
+    }
+    dominant=count.most_common(1)[0][0]
+    
+    return{
+         "chars": len(text),
+        "blocks": len(blocks),
+        "dominant_emotion": dominant,
+        "percentages": percentages,
+        "timeline": results,
+        "summary": build_summary(dominant, percentages)
+    }
+    
 # Aqui se hace que la API pueda recibir archivos
 #UploadFile representa el archivo que sube el usuario
 #File(...) le dice a FastAPI que esto viene en un formulario
@@ -60,7 +100,8 @@ async def upload_file(file:UploadFile=File(...)):
         "dominant_emotion":dominant,
         "percentages":porcentages,
         "timeline":results,
-        "preview":text[:300]
+        "preview":text[:300],
+        "sumary": build_summary(dominant,porcentages)
     }
     
 #Se van a leer los archivos que se reciben desde el cliente
@@ -112,7 +153,16 @@ def split_text(text:str,max_words: int =200):
 def analyze_block(text:str):
     snippet=text[:512]
     result=emotion_analyzer(snippet)[0]
+    label=result["label"]
     return{
-        "emotion":result["label"],
+        "emotion":EMOTION_MAP.get(label,label),
         "score":float(result["score"])
     }
+    
+def build_summary(dominant,percentages):
+    parts=[f"{k} ({v}%)" for k, v in percentages.items()]
+    return(
+        f"El texto tiene un tono principalmente {dominant.lower()}. "
+        f"Las emociones más presentes son: " + ", ".join(parts)
+    )
+    

@@ -9,21 +9,20 @@ from transformers import pipeline
 from collections import Counter
 
 EMOTION_MAP = {
-    "joy": "Alegría",
-    "sadness": "Tristeza",
-    "fear": "Miedo",
-    "anger": "Enojo",
+    "joy": "Alegría / Satisfacción ",
+    "sadness": "Tristeza/Decepción",
+    "fear": "Miedo / Ansiedad",
+    "anger": "Enojo/ Frustración",
     "surprise": "Sorpresa",
     "love": "Afecto",
-    "others": "Neutral"
+    "others": "Neutral/ Informativo"
 }
 
 
 #Esto carga un modelo que reconoce emociones en español.
-emotion_analyzer=pipeline(
+emotion_analyzer = pipeline(
     "text-classification",
-    model="finiteautomata/beto-emotion-analysis",
-    
+    model="./emotion_model"  # o el nombre que elegiste
 )
 
 app=FastAPI()
@@ -101,7 +100,7 @@ async def upload_file(file:UploadFile=File(...)):
         "percentages":porcentages,
         "timeline":results,
         "preview":text[:300],
-        "sumary": build_summary(dominant,porcentages)
+        "summary": build_summary(dominant,porcentages)
     }
     
 #Se van a leer los archivos que se reciben desde el cliente

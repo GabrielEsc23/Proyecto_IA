@@ -37,6 +37,46 @@ def analyze_text():
 
     except Exception as e:
         messagebox.showerror("Error", str(e))
+# Función para subir un archivo 
+def upload_file():
+    file_path = filedialog.askopenfilename(
+        title="Selecciona un archivo",
+        filetypes=[
+            ("Todos los soportados", "*.txt *.pdf *.docx *.xlsx"),
+            ("Archivos de texto", "*.txt"),
+            ("PDF", "*.pdf"),
+            ("Word", "*.docx"),
+            ("Excel", "*.xlsx")
+        ]
+    )
+
+    if not file_path:
+        return
+
+    try:
+        with open(file_path, "rb") as f:
+            files = {"file": f}
+            response = requests.post(f"{API_URL}/upload", files=files)
+
+        data = response.json()
+        result_area.delete("1.0", tk.END)
+
+        if "error" in data:
+            result_area.insert(tk.END, data["error"])
+            return
+
+        result_area.insert(tk.END, f"Emoción dominante: {data['dominant_emotion']}\n\n")
+        result_area.insert(tk.END, f"{data['summary']}\n\n")
+        result_area.insert(tk.END, "Detalle por bloques:\n")
+
+        for i, block in enumerate(data["timeline"], start=1):
+            result_area.insert(
+                tk.END,
+                f"Bloque {i}: {block['emotion']} ({round(block['score']*100, 2)}%)\n"
+            )
+
+    except Exception as e:
+        messagebox.showerror("Error", str(e))
 
 #Ventana principal
 ventana=tk.Tk()
@@ -59,7 +99,7 @@ analyze_btn=tk.Button(button_frame,text="Analizar texto",width=20,command=analyz
 
 analyze_btn.grid(row=0,column=0,padx=5)
 
-upload_btn=tk.Button(button_frame,text="Subir archivo",width=20)
+upload_btn=tk.Button(button_frame,text="Subir archivo",width=20,command=upload_file)
 upload_btn.grid(row=0,column=1,padx=5)
 #Area de resultados
 

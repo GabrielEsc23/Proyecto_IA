@@ -5,6 +5,7 @@ import requests
 API_URL = "http://127.0.0.1:8000"
 
 # Función para analizar texto escrito por el usuario
+# Función para analizar texto escrito por el usuario
 def analyze_text():
     text = text_area.get("1.0", tk.END).strip()
 
@@ -27,17 +28,15 @@ def analyze_text():
 
         result_area.insert(tk.END, f"Emoción dominante: {data['dominant_emotion']}\n\n")
         result_area.insert(tk.END, f"{data['summary']}\n\n")
-        result_area.insert(tk.END, "Detalle por bloques:\n")
 
-        for i, block in enumerate(data["timeline"], start=1):
-            result_area.insert(
-                tk.END,
-                f"Bloque {i}: {block['emotion']} ({round(block['score']*100, 2)}%)\n"
-            )
+        result_area.insert(tk.END, "Distribución de emociones:\n")
+        for emotion, pct in data["percentages"].items():
+            result_area.insert(tk.END, f" - {emotion}: {pct}%\n")
 
     except Exception as e:
         messagebox.showerror("Error", str(e))
-# Función para subir un archivo 
+
+# Función para subir un archivo
 def upload_file():
     file_path = filedialog.askopenfilename(
         title="Selecciona un archivo",
@@ -67,8 +66,13 @@ def upload_file():
 
         result_area.insert(tk.END, f"Emoción dominante: {data['dominant_emotion']}\n\n")
         result_area.insert(tk.END, f"{data['summary']}\n\n")
-        result_area.insert(tk.END, "Detalle por bloques:\n")
 
+        result_area.insert(tk.END, "Distribución de emociones:\n")
+        for emotion, pct in data["percentages"].items():
+            result_area.insert(tk.END, f" - {emotion}: {pct}%\n")
+        result_area.insert(tk.END, "\n")
+
+        result_area.insert(tk.END, "Detalle por bloques:\n")
         for i, block in enumerate(data["timeline"], start=1):
             result_area.insert(
                 tk.END,
@@ -77,6 +81,7 @@ def upload_file():
 
     except Exception as e:
         messagebox.showerror("Error", str(e))
+
 
 #Ventana principal
 ventana=tk.Tk()

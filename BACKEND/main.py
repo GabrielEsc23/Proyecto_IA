@@ -8,21 +8,25 @@ from io import BytesIO
 from transformers import pipeline
 from collections import Counter
 
-EMOTION_MAP = {
-    "joy": "Alegría / Satisfacción ",
-    "sadness": "Tristeza/Decepción",
-    "fear": "Miedo / Ansiedad",
-    "anger": "Enojo/ Frustración",
-    "surprise": "Sorpresa",
-    "love": "Afecto",
-    "others": "Neutral/ Informativo"
+
+LABEL_MAP = {
+    "LABEL_0": "Tristeza",
+    "LABEL_1": "Alegría",
+    "LABEL_2": "Amor",
+    "LABEL_3": "Enojo",
+    "LABEL_4": "Miedo",
+    "LABEL_5": "Sorpresa"
 }
 
-
+translator = pipeline(
+    "translation",
+    model="Helsinki-NLP/opus-mt-es-en"
+)
 #Esto carga un modelo que reconoce emociones en español.
 emotion_analyzer = pipeline(
     "text-classification",
-    model="./emotion_model"  # o el nombre que elegiste
+    model="./emotion_model",  # o el nombre que elegiste
+    return_all_scores=True
 )
 
 app=FastAPI()
@@ -31,34 +35,34 @@ def root():
     return {"status":"ok"}
 
 @app.post("/analyze-text")
-async def analyze_text(data:dict):
-    text=data.get("text","")
+async def analyze_text(data: dict):
+    text = data.get("text", "")
     if not text.strip():
-        return {"error":"Texto vacío"}
-    blocks=smart_split(text)
-    results=[]
-    for block in blocks:
-        analysis=analyze_block(block)
-        results.append(analysis)
-        
-    emotions=[r["emotion"] for r in results]
-    count=Counter(emotions)
-    total=len(emotions)
-    
-    percentages = {
-        emotion: round((qty / total) * 100, 2)
-        for emotion, qty in count.items()
+        return {"error": "Texto vacío"}
+
+    snippet = text[:512]
+
+    # Traducir a inglés
+    translated = translator(snippet)[0]["translation_text"]
+
+    # Analizar una sola vez todo el texto
+    results = emotion_analyzer(translated)[0]
+
+    # Convertir etiquetas a nombres humanos
+    emotions = {
+        LABEL_MAP.get(r["label"], r["label"]): round(r["score"] * 100, 2)
+        for r in results
     }
-    dominant=count.most_common(1)[0][0]
-    
-    return{
-         "chars": len(text),
-        "blocks": len(blocks),
+
+    dominant = max(emotions, key=emotions.get)
+
+    return {
+        "chars": len(text),
         "dominant_emotion": dominant,
-        "percentages": percentages,
-        "timeline": results,
-        "summary": build_summary(dominant, percentages)
+        "percentages": emotions,
+        "summary": build_summary(dominant, emotions)
     }
+
     
 # Aqui se hace que la API pueda recibir archivos
 #UploadFile representa el archivo que sube el usuario
@@ -134,24 +138,23 @@ def read_excel(file_bytes:bytes)-> str:
 #Lo separa en bloques de ~200 palabras
 #Devuelve una lista de strings """
 
-def smart_split(text: str, max_words: int = 200):
-    # Primero intentamos dividir por líneas
-    lines = [line.strip() for line in text.split("\n") if line.strip()]
+import re
 
-    # Si hay varias líneas reales, usamos esas
-    if len(lines) > 1:
-        return lines
+def smart_split(text: str, max_words: int = 120):
+    import re
+    text = re.sub(r"\s+", " ", text).strip()
+    sentences = re.split(r'(?<=[.!?])\s+', text)
 
-    # Si no, caemos al método por palabras (párrafo largo)
-    words = text.split()
     blocks = []
     current = []
 
-    for word in words:
-        current.append(word)
-        if len(current) >= max_words:
+    for s in sentences:
+        words = s.split()
+        if len(current) + len(words) <= max_words:
+            current.extend(words)
+        else:
             blocks.append(" ".join(current))
-            current = []
+            current = words
 
     if current:
         blocks.append(" ".join(current))
@@ -159,14 +162,24 @@ def smart_split(text: str, max_words: int = 200):
     return blocks
 
 
-def analyze_block(text:str):
-    snippet=text[:512]
-    result=emotion_analyzer(snippet)[0]
-    label=result["label"]
-    return{
-        "emotion":EMOTION_MAP.get(label,label),
-        "score":float(result["score"])
+
+def analyze_block(text: str):
+    snippet = text[:512]
+
+    # Traducir a inglés
+    translated = translator(snippet)[0]["translation_text"]
+
+    # Analizar con tu modelo entrenado en inglés
+    result = emotion_analyzer(translated)[0]
+    label = result["label"]
+
+    human = LABEL_MAP.get(label, label)
+
+    return {
+        "emotion": human,
+        "score": float(result["score"])
     }
+
     
 def build_summary(dominant,percentages):
     parts=[f"{k} ({v}%)" for k, v in percentages.items()]

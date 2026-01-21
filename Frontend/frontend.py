@@ -41,11 +41,12 @@ def upload_file():
     file_path = filedialog.askopenfilename(
         title="Selecciona un archivo",
         filetypes=[
-            ("Todos los soportados", "*.txt *.pdf *.docx *.xlsx"),
+            ("Todos los soportados", "*.txt *.pdf *.docx *.xlsx *.csv"),
             ("Archivos de texto", "*.txt"),
             ("PDF", "*.pdf"),
             ("Word", "*.docx"),
-            ("Excel", "*.xlsx")
+            ("Excel", "*.xlsx"),
+            ("CSV", "*.csv")
         ]
     )
 
@@ -87,28 +88,30 @@ def upload_file():
 ventana=tk.Tk()
 ventana.title("Analizador Emocional")
 ventana.geometry("1029x1080")
+ventana.configure(bg="#498EB8")
 
 #Titulo 
-titulo= tk.Label(ventana,text="Analizador de Emociones",font=("Arial",30,"bold"))
+titulo= tk.Label(ventana,text="Analizador de Emociones",font=("Arial",30,"bold"),bg="#498EB8",fg="#EEF90E")
 titulo.pack(pady=10)
 
 # Cuadro de texto 
-text_area=scrolledtext.ScrolledText(ventana,wrap=tk.WORD,width=80,height=15)
+text_area=scrolledtext.ScrolledText(ventana,wrap=tk.WORD,bg="#23A3DE",fg="yellow",font=("Arial"),width=80,height=15)
 text_area.pack(padx=10,pady=70)
 
 #Frame de botones 
 button_frame=tk.Frame(ventana)
 button_frame.pack(pady=5)
+button_frame.configure(bg="#498EB8")
 
-analyze_btn=tk.Button(button_frame,text="Analizar texto",width=20,command=analyze_text)
+analyze_btn=tk.Button(button_frame,text="Analizar texto",bg="#3258C0",width=20,command=analyze_text)
 
 analyze_btn.grid(row=0,column=0,padx=5)
 
-upload_btn=tk.Button(button_frame,text="Subir archivo",width=20,command=upload_file)
+upload_btn=tk.Button(button_frame,text="Subir archivo",bg="#3258C0",width=20,command=upload_file)
 upload_btn.grid(row=0,column=1,padx=5)
 #Area de resultados
 
-result_area = scrolledtext.ScrolledText(ventana, wrap=tk.WORD, width=80, height=10)
+result_area = scrolledtext.ScrolledText(ventana, wrap=tk.WORD,font=("Arial"), width=80, height=10)
 result_area.pack(padx=10, pady=10)
 
 ventana.mainloop()

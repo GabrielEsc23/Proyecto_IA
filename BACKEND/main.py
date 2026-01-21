@@ -78,6 +78,8 @@ async def upload_file(file:UploadFile=File(...)):
         text=read_pdf(file_bytes)
     elif filename.endswith(".docx"):
         text=read_docx(file_bytes)
+    elif filename.endswith(".csv"):
+        text = read_csv(file_bytes)    
     elif filename.endswith(".xlsx"):
         text=read_excel(file_bytes)
     else:
@@ -119,6 +121,13 @@ def read_pdf(file_bytes:bytes)-> str:
             if page_text:
                 text +=page_text + "\n"
     return text
+
+def read_csv(file_bytes: bytes) -> str:
+    df = pd.read_csv(BytesIO(file_bytes))
+    return "\n".join(
+        " ".join(str(cell) for cell in row)
+        for row in df.values
+    )
 
 def read_docx(file_bytes)-> str:
     doc=Document(BytesIO(file_bytes))
@@ -168,16 +177,21 @@ def analyze_block(text: str):
 
     # Traducir a inglés
     translated = translator(snippet)[0]["translation_text"]
+    #Obtener todas las emoociones
+    outputs = emotion_analyzer(translated, top_k=None)
 
-    # Analizar con tu modelo entrenado en inglés
-    result = emotion_analyzer(translated)[0]
-    label = result["label"]
+    # Aplanar si viene en doble lista
+    if isinstance(outputs, list) and len(outputs) > 0 and isinstance(outputs[0], list):
+        outputs = outputs[0]
+
+    best = max(outputs, key=lambda x: x["score"])
+    label = best["label"]
 
     human = LABEL_MAP.get(label, label)
 
     return {
         "emotion": human,
-        "score": float(result["score"])
+        "score": float(best["score"])
     }
 
     

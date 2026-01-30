@@ -26,7 +26,8 @@ translator = pipeline(
 emotion_analyzer = pipeline(
     "text-classification",
     model="./emotion_model",  # o el nombre que elegiste
-    return_all_scores=True
+    return_all_scores=True,
+    top_k=None
 )
 
 app=FastAPI()
@@ -40,74 +41,76 @@ async def analyze_text(data: dict):
     if not text.strip():
         return {"error": "Texto vacío"}
 
-    snippet = text[:512]
+    # Analizar TODO el texto de una sola vez
+    emotions = analyze_block(text)
 
-    # Traducir a inglés
-    translated = translator(snippet)[0]["translation_text"]
+    totals = {}
+    for e in emotions:
+        totals[e["emotion"]] = totals.get(e["emotion"], 0) + e["score"]
 
-    # Analizar una sola vez todo el texto
-    results = emotion_analyzer(translated)[0]
+    total_score = sum(totals.values())
 
-    # Convertir etiquetas a nombres humanos
-    emotions = {
-        LABEL_MAP.get(r["label"], r["label"]): round(r["score"] * 100, 2)
-        for r in results
+    percentages = {
+        emotion: round((score / total_score) * 100, 2)
+        for emotion, score in totals.items()
     }
 
-    dominant = max(emotions, key=emotions.get)
+    dominant = max(percentages, key=percentages.get)
 
     return {
         "chars": len(text),
         "dominant_emotion": dominant,
-        "percentages": emotions,
-        "summary": build_summary(dominant, emotions)
+        "percentages": percentages,
+        "summary": build_summary(dominant, percentages)
     }
+
 
     
 # Aqui se hace que la API pueda recibir archivos
 #UploadFile representa el archivo que sube el usuario
 #File(...) le dice a FastAPI que esto viene en un formulario
 @app.post("/upload")
-async def upload_file(file:UploadFile=File(...)):
-    file_bytes=await file.read()
-    filename=file.filename.lower()
-    
+async def upload_file(file: UploadFile = File(...)):
+    file_bytes = await file.read()
+    filename = file.filename.lower()
+
     if filename.endswith(".txt"):
-        text=read_txt(file_bytes)
+        text = read_txt(file_bytes)
     elif filename.endswith(".pdf"):
-        text=read_pdf(file_bytes)
+        text = read_pdf(file_bytes)
     elif filename.endswith(".docx"):
-        text=read_docx(file_bytes)
+        text = read_docx(file_bytes)
     elif filename.endswith(".csv"):
-        text = read_csv(file_bytes)    
+        text = read_csv(file_bytes)
     elif filename.endswith(".xlsx"):
-        text=read_excel(file_bytes)
+        text = read_excel(file_bytes)
     else:
-        return {"error":"Formato no soportado"}
-    
-    blocks= smart_split(text)
-    results= []
-    for block in blocks:
-        analysis=analyze_block(block)
-        results.append(analysis)
-    emotions=[r["emotion"] for r in results]
-    count=Counter(emotions)
-    total=len(emotions)
-    
-    porcentages={
-        emotion:round((qty/total)*100,2)
-        for emotion,qty in count.items()
+        return {"error": "Formato no soportado"}
+
+    # 🔥 ANALIZAR TODO EL TEXTO DE UNA SOLA VEZ
+    emotions = analyze_block(text)
+
+    totals = {}
+    for e in emotions:
+        totals[e["emotion"]] = totals.get(e["emotion"], 0) + e["score"]
+
+    total_score = sum(totals.values())
+
+    percentages = {
+        emotion: round((score / total_score) * 100, 2)
+        for emotion, score in totals.items()
     }
-    dominant=count.most_common(1)[0][0]
-    return{
-        "chars":len(text),
-        "blocks":len(blocks),
-        "dominant_emotion":dominant,
-        "percentages":porcentages,
-        "timeline":results,
-        "preview":text[:300],
-        "summary": build_summary(dominant,porcentages)
+
+    dominant = max(percentages, key=percentages.get)
+
+    return {
+        "chars": len(text),
+        "dominant_emotion": dominant,
+        "percentages": percentages,
+        "preview": text[:300],
+        "summary": build_summary(dominant, percentages)
     }
+
     
 #Se van a leer los archivos que se reciben desde el cliente
 def read_txt(file_bytes:bytes)-> str:
@@ -177,22 +180,24 @@ def analyze_block(text: str):
 
     # Traducir a inglés
     translated = translator(snippet)[0]["translation_text"]
-    #Obtener todas las emoociones
+
+    # Obtener TODAS las emociones
     outputs = emotion_analyzer(translated, top_k=None)
 
-    # Aplanar si viene en doble lista
+    # Aplanar si viene como [[...]]
     if isinstance(outputs, list) and len(outputs) > 0 and isinstance(outputs[0], list):
         outputs = outputs[0]
 
-    best = max(outputs, key=lambda x: x["score"])
-    label = best["label"]
+    results = []
+    for o in outputs:
+        label = o["label"]
+        results.append({
+            "emotion": LABEL_MAP.get(label, label),
+            "score": float(o["score"])
+        })
 
-    human = LABEL_MAP.get(label, label)
+    return results
 
-    return {
-        "emotion": human,
-        "score": float(best["score"])
-    }
 
     
 def build_summary(dominant,percentages):

@@ -73,12 +73,12 @@ def upload_file():
             result_area.insert(tk.END, f" - {emotion}: {pct}%\n")
         result_area.insert(tk.END, "\n")
 
-        result_area.insert(tk.END, "Detalle por bloques:\n")
-        for i, block in enumerate(data["timeline"], start=1):
-            result_area.insert(
-                tk.END,
-                f"Bloque {i}: {block['emotion']} ({round(block['score']*100, 2)}%)\n"
-            )
+        # result_area.insert(tk.END, "Detalle por bloques:\n")
+        # for i, block in enumerate(data["timeline"], start=1):
+        #     result_area.insert(
+        #         tk.END,
+        #         f"Bloque {i}: {block['emotion']} ({round(block['score']*100, 2)}%)\n"
+        #     )
 
     except Exception as e:
         messagebox.showerror("Error", str(e))
@@ -103,11 +103,11 @@ button_frame=tk.Frame(ventana)
 button_frame.pack(pady=5)
 button_frame.configure(bg="#498EB8")
 
-analyze_btn=tk.Button(button_frame,text="Analizar texto",bg="#3258C0",width=20,command=analyze_text)
+analyze_btn=tk.Button(button_frame,text="Analizar texto",bg="#3258C0",fg="white",width=20,command=analyze_text)
 
 analyze_btn.grid(row=0,column=0,padx=5)
 
-upload_btn=tk.Button(button_frame,text="Subir archivo",bg="#3258C0",width=20,command=upload_file)
+upload_btn=tk.Button(button_frame,text="Subir archivo",bg="#3258C0",fg="white",width=20,command=upload_file)
 upload_btn.grid(row=0,column=1,padx=5)
 #Area de resultados
 

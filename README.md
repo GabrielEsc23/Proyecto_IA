@@ -98,6 +98,7 @@ El proyecto sigue una arquitectura **cliente-servidor**:
 │   └── frontend.py
 └── README.md
 
+```
 ---
 
 ## 🚀 Instalación
